@@ -59,7 +59,6 @@ const requestTimeout = time.Minute
 
 func (s *server) handleConn(conn net.Conn) {
 	defer s.wg.Done()
-	//defer conn.Close() // NOTE: write half closed in proxy
 
 	address, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	clientIP := net.ParseIP(address)
@@ -91,15 +90,15 @@ func (s *server) handleConn(conn net.Conn) {
 		log.Printf("%v", err)
 		return
 	}
-	//defer dstConn.Close() // NOTE: write half closed in proxy
 
 	// wait for banner greeting?
 
 	errCh := make(chan error, 2)
 
 	// ? https://godoc.org/golang.org/x/sync/errgroup#pkg-index
-	go proxy(dstConn, conn, errCh)
-	go proxy(conn, dstConn, errCh)
+	// ? use waitgroup and print error from goroutine
+	go proxy(dstConn, conn.(*net.TCPConn), errCh)
+	go proxy(conn.(*net.TCPConn), dstConn, errCh)
 
 	// wait for both to return
 	for i := 0; i < 2; i++ {
@@ -107,10 +106,10 @@ func (s *server) handleConn(conn net.Conn) {
 		if err != nil {
 			// readfrom tcp 136.144.181.209:35455->108.177.127.27:25: splice: connection reset by peer
 			// readfrom tcp 185.28.63.190:37080->67.195.228.94:25: splice: connection reset by peer
-			// readfrom tcp 185.28.63.135:48580->67.195.204.75:25: use of closed network connection
 			log.Printf("%v", err)
 		}
 	}
+	dstConn.Close()
 	log.Printf("Done proxying from %s to %s via %s", conn.RemoteAddr(), destination, source)
 }
 
@@ -120,25 +119,17 @@ var pool = &sync.Pool{
 	},
 }
 
-type halfCloser interface {
-	//CloseRead() error
-	CloseWrite() error
-}
-
 // Proxy copies data from src to dst until EOF.
-// If dst implements CloseWrite (*net.TCPConn) it is called.
-func proxy(src net.Conn, dst net.Conn, errCh chan error) {
+// When done it closes the destination connection.
+func proxy(src, dst *net.TCPConn, errCh chan error) {
 	buf := pool.Get().([]byte)
 	_, err := io.CopyBuffer(dst, src, buf)
 	pool.Put(buf)
 	// If source connection closed, signal destination by closing outgoing connection.
 	// Otherwise destination might wait and reverse direction proxy does not finish.
-	//if conn, ok := dst.(halfCloser); ok {
-	//	conn.CloseWrite()
-	//}
-	dst.Close()
-	//if conn, ok := src.(halfCloser); ok {
-	//	conn.CloseRead()
-	//}
+	// Servers can choose to send data after receiving FIN packet.
+	// https://github.com/kubernetes/kubernetes/blob/master/pkg/proxy/userspace/proxysocket.go#L164
+	dst.CloseWrite()
+	src.CloseRead() // ? needed
 	errCh <- err
 }
