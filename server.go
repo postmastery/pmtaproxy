@@ -109,6 +109,7 @@ func (s *server) handleConn(conn net.Conn) {
 			log.Printf("%v", err)
 		}
 	}
+	conn.Close()
 	dstConn.Close()
 	log.Printf("Done proxying from %s to %s via %s", conn.RemoteAddr(), destination, source)
 }
