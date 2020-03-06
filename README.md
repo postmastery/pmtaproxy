@@ -20,9 +20,14 @@ Create systemd configuration as /lib/systemd/system/pmtaproxy.service:
     [Install]
     WantedBy=multi-user.target
 
-Specify the PowerMTA source ip range in -a or add firewall rule:
+Allow incoming connections to the port used by the proxy. On Ubuntu/Debian:
 
-    ufw allow from <powermta_source_ip> to any port 5000 proto tcp
+    ufw allow any to any port 5000 proto tcp
+
+On Redhat/CentOS:
+
+    firewall-cmd --zone=public --add-port=5000/tcp --permanent
+    firewall-cmd --reload
 
 Start pmtaproxy:
 

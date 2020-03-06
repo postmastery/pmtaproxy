@@ -10,7 +10,7 @@ import (
 )
 
 // Version reported by -v parameter.
-var Version = "1.2.2"
+var Version = "1.2.3"
 
 func main() {
 
@@ -39,5 +39,4 @@ func main() {
 	s := <-sigc
 	log.Printf("%v received, stopping...", s)
 	server.Close()
-	// TODO: wait for all goroutines to finish
 }

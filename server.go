@@ -12,8 +12,10 @@ type server struct {
 	listener net.Listener
 	allowed  *net.IPNet
 	wg       sync.WaitGroup
+	quit     chan struct{}
 }
 
+// newServer starts a listener in a goroutine and returns.
 func newServer(listenAddress string, allowCIDR string) (s *server, err error) {
 	//var lc net.ListenConfig
 	// listener, err := lc.Listen(ctx, "tcp", listenAdress)
@@ -28,6 +30,7 @@ func newServer(listenAddress string, allowCIDR string) (s *server, err error) {
 	s = &server{
 		listener: listener,
 		allowed:  allowed,
+		quit:     make(chan struct{}),
 	}
 	s.wg.Add(1)
 	go s.serve()
@@ -35,20 +38,25 @@ func newServer(listenAddress string, allowCIDR string) (s *server, err error) {
 }
 
 func (s *server) Close() error {
+	close(s.quit) // signal to serve() that listener is closed
 	err := s.listener.Close()
-	// wait for all goroutines to finish
-	s.wg.Wait()
+	s.wg.Wait() // wait for all goroutines to finish
 	return err
 }
 
 // Serve handles connections.
-func (s *server) serve() error {
+func (s *server) serve() {
 	defer s.wg.Done()
 	log.Printf("Listening on %s", s.listener.Addr().String())
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			return err
+			select {
+			case <-s.quit:
+				return
+			default:
+				log.Printf("%v", err) // assume error is not fatal
+			}
 		}
 		s.wg.Add(1)
 		go s.handleConn(conn)
@@ -91,12 +99,11 @@ func (s *server) handleConn(conn net.Conn) {
 		return
 	}
 
-	// wait for banner greeting?
-
 	errCh := make(chan error, 2)
 
 	// ? https://godoc.org/golang.org/x/sync/errgroup#pkg-index
 	// ? use waitgroup and print error from goroutine
+	// ? https://godoc.org/github.com/oklog/run
 	go proxy(dstConn, conn.(*net.TCPConn), errCh)
 	go proxy(conn.(*net.TCPConn), dstConn, errCh)
 
