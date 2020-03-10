@@ -13,6 +13,8 @@ type server struct {
 	allowed  *net.IPNet
 	wg       sync.WaitGroup
 	quit     chan struct{}
+	// ErrCh will pass an error from accept
+	ErrCh chan error
 }
 
 // newServer starts a listener in a goroutine and returns.
@@ -31,6 +33,7 @@ func newServer(listenAddress string, allowCIDR string) (s *server, err error) {
 		listener: listener,
 		allowed:  allowed,
 		quit:     make(chan struct{}),
+		ErrCh:    make(chan error, 1),
 	}
 	s.wg.Add(1)
 	go s.serve()
@@ -55,8 +58,15 @@ func (s *server) serve() {
 			case <-s.quit:
 				return
 			default:
-				log.Printf("%v", err) // assume error is not fatal
 			}
+			if e, ok := err.(net.Error); ok && e.Temporary() {
+				// accept tcp [::]:5000: accept4: too many open files
+				log.Printf("%v; retrying...", err)
+				time.Sleep(50 * time.Millisecond)
+				continue
+			}
+			s.ErrCh <- err
+			return
 		}
 		s.wg.Add(1)
 		go s.handleConn(conn)

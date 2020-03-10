@@ -10,7 +10,7 @@ import (
 )
 
 // Version reported by -v parameter.
-var Version = "1.2.3"
+var Version = "1.2.4"
 
 func main() {
 
@@ -29,14 +29,18 @@ func main() {
 		return
 	}
 
-	server, err := newServer(listen, allow)
+	s, err := newServer(listen, allow)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM) // SIGINT (^C) and SIGTERM
-	s := <-sigc
-	log.Printf("%v received, stopping...", s)
-	server.Close()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM) // SIGINT (^C) and SIGTERM
+	select {
+	case err := <-s.ErrCh:
+		log.Printf("%v; stopping...", err)
+	case sig := <-sigCh:
+		log.Printf("%v signal; stopping...", sig)
+	}
+	s.Close()
 }
