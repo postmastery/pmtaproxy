@@ -104,6 +104,7 @@ func (s *server) handleConn(conn net.Conn) {
 	if err != nil {
 		conn.Close()
 		// "dial tcp 136.144.181.209:0->149.210.165.215:25: connect: connection timed out" after 2m10s
+		// "dial tcp 185.28.63.232:0->104.47.70.33:25: socket: too many open files"
 		// "refused", "network is unreachable"
 		log.Printf("%v", err)
 		return

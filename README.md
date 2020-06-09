@@ -2,11 +2,26 @@
 
 Forward proxy that supports the [proxy protocol version 1](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt).
 
+See [PowerMTA 5.0: Using a proxy for email delivery](https://www.postmastery.com/powermta-5-0-using-a-proxy-for-email-delivery/) for possible use cases.
+
+## Requirements
+
+The proxy is a lean, native binary written in Go. It does mostly network I/O. A (virtual) Linux server with 1 CPU core and 1 GB RAM is sufficient to run the proxy.
+
+## Features
+
+The main feature of pmtaproxy is it's simplicity. It's sole purpose is to proxy connections from PowerMTA to the destination MX. PowerMTA will tell the proxy from which IP, and to which IP a connection should be made. Thus little configuration of the proxy is needed.
+
+The proxy supports the following settings:
+
+* -l: host:port for listening. Use this setting to specify the IPs and port to listen for incoming connections fromm PowerMTA.
+* -a: allowed connection sources. Use this setting to allow incoming connections from the specified CIDR range and deny all other.
+
 ## Installing
 
 Download pmtaproxy for Linux from [https://postmastery.egnyte.com/dl/can2yhUBi8](https://postmastery.egnyte.com/dl/can2yhUBi8).
 
-Copy pmtaproxy to the server in /usr/local/sbin.
+Copy pmtaproxy to the server in /usr/local/sbin. Set permissions to 0755.
 
 Create systemd configuration as /lib/systemd/system/pmtaproxy.service:
 
@@ -19,6 +34,8 @@ Create systemd configuration as /lib/systemd/system/pmtaproxy.service:
 
     [Install]
     WantedBy=multi-user.target
+
+Set permissions of /lib/systemd/system/pmtaproxy.service to 0644.
 
 Allow incoming connections to the port used by the proxy. On Ubuntu/Debian:
 
@@ -37,6 +54,10 @@ Monitor log:
 
     journalctl -f -u pmtaproxy
 
+Enable start on system startup:
+
+    sudo systemctl enable pmtaproxy
+
 ## Configuration
 
 Each IP address used on the proxy needs to be configured in PowerMTA using the \<proxy\> tag. This tag specifies the listener address and the source address for connections to the destination. For example:
@@ -54,3 +75,24 @@ Then a \<virtual-mta\> can be configured with the use-proxy directive which rout
     </virtual-mta>
 
 NOTE: The hostname in \<proxy\>.client is used as HELO/EHLO name, instead of \<virtual-mta\>.smtp-source-host.
+
+## Troubleshooting
+
+### Too many open files
+
+If the log shows "too many open files" errors, check the limits for the pmtaproxy process:
+
+    cat /proc/`pidof pmtaproxy`/limits
+
+Add LimitNOFILE setting to /lib/systemd/system/pmtaproxy.service:
+
+    [Service]
+    ...
+    LimitNOFILE=4096
+
+Reload services configuration and restart pmtaproxy:
+
+    systemctl daemon-reload
+    systemctl restart pmtaproxy
+
+
