@@ -8,13 +8,17 @@ See [PowerMTA 5.0: Using a proxy for email delivery](https://www.postmastery.com
 
 The proxy is a lean, native binary written in Go. It does mostly network I/O. A (virtual) Linux server with 1 CPU core and 1 GB RAM is sufficient to run the proxy.
 
+Any up-to-date Linux distribution can be used. CentOS/RHEL 5.x is not supported.
+
+PowerMTA 5.0r2 or higher should be used. PowerMTA 5.0r1 has a bug in the proxy support implementation.
+
 ## Features
 
 The main feature of pmtaproxy is it's simplicity. It's sole purpose is to proxy connections from PowerMTA to the destination MX. PowerMTA will tell the proxy from which IP, and to which IP a connection should be made. Thus little configuration of the proxy is needed.
 
 The proxy supports the following settings:
 
-* -l: host:port for listening. Use this setting to specify the IPs and port to listen for incoming connections fromm PowerMTA.
+* -l: host:port for listening. Use this setting to specify the IP (optional) and port to listen for incoming connections fromm PowerMTA.
 * -a: allowed connection sources. Use this setting to allow incoming connections from the specified CIDR range and deny all other.
 
 ## Installing
@@ -60,6 +64,19 @@ Enable start on system startup:
 
 ## Configuration
 
+### PowerMTA 5.0r8 or later
+
+A \<virtual-mta\> can be configured with smtp-proxy-source-host instead of smtp-source-host which routes all connections via the specified proxy and the specified IP on the proxy. For example:
+
+    <virtual-mta prox01>
+      # smtp-proxy-source-host LOCAL-IP PROXY-SERVER:PORT PROXY-CLIENT-IP[:PORT] HOSTNAME
+      smtp-proxy-source-host 140.201.38.1 65.30.42.1:5000 65.30.42.1:0 prox01.example.com
+    </virtual-mta>
+
+NOTE: The hostname must refer to the proxy client IP, not the local IP.
+
+### PowerMTA 5.0r2 to 5.0r7
+
 Each IP address used on the proxy needs to be configured in PowerMTA using the \<proxy\> tag. This tag specifies the listener address and the source address for connections to the destination. For example:
 
     <proxy prox01>
@@ -78,13 +95,19 @@ NOTE: The hostname in \<proxy\>.client is used as HELO/EHLO name, instead of \<v
 
 ## Troubleshooting
 
+### Testing connection
+
+    nc -vz proxy_server_ip 5000
+
+    echo -n "PROXY TCP4 proxy_source_ip destination_ip 0 25" | nc -s local_source_ip proxy_server_ip 5000
+
 ### Too many open files
 
 If the log shows "too many open files" errors, check the limits for the pmtaproxy process:
 
     cat /proc/`pidof pmtaproxy`/limits
 
-Add LimitNOFILE setting to /lib/systemd/system/pmtaproxy.service:
+Add LimitNOFILE setting to /lib/systemd/system/pmtaproxy.service and set it to a higher value:
 
     [Service]
     ...

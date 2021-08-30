@@ -10,9 +10,12 @@ import (
 )
 
 // Version reported by -v parameter.
-var Version = "1.2.4"
+var Version = "1.2.6"
 
 func main() {
+
+	// Timestamp added by journalctl.
+	log.SetFlags(0)
 
 	var (
 		listen  string
