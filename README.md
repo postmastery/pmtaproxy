@@ -70,7 +70,7 @@ A \<virtual-mta\> can be configured with smtp-proxy-source-host instead of smtp-
 
     <virtual-mta prox01>
       # smtp-proxy-source-host LOCAL-IP PROXY-SERVER:PORT PROXY-CLIENT-IP[:PORT] HOSTNAME
-      smtp-proxy-source-host 140.201.38.1 65.30.42.1:5000 65.30.42.1:0 prox01.example.com
+      smtp-proxy-source-host 140.201.38.1 65.30.42.1:5000 65.30.42.1 prox01.example.com
     </virtual-mta>
 
 NOTE: The hostname must refer to the proxy client IP, not the local IP.
