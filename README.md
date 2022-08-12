@@ -41,9 +41,11 @@ Create systemd configuration as /lib/systemd/system/pmtaproxy.service:
 
 Set permissions of /lib/systemd/system/pmtaproxy.service to 0644.
 
-Allow incoming connections to the port used by the proxy. On Ubuntu/Debian:
+If a firewall is used, allow incoming connections to the port used by the proxy. 
 
-    ufw allow any to any port 5000 proto tcp
+On Ubuntu/Debian:
+
+    ufw allow 5000/tcp
 
 On Redhat/CentOS:
 
