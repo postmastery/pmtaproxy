@@ -35,6 +35,7 @@ Create systemd configuration as /lib/systemd/system/pmtaproxy.service:
     [Service]
     ExecStart=/usr/local/sbin/pmtaproxy -l=:5000 -a=10.0.0.0/8
     Restart=on-failure
+    LimitNOFILE=4096
 
     [Install]
     WantedBy=multi-user.target
@@ -109,11 +110,11 @@ If the log shows "too many open files" errors, check the limits for the pmtaprox
 
     cat /proc/`pidof pmtaproxy`/limits
 
-Add LimitNOFILE setting to /lib/systemd/system/pmtaproxy.service and set it to a higher value:
+Increase the LimitNOFILE setting in /lib/systemd/system/pmtaproxy.service:
 
     [Service]
     ...
-    LimitNOFILE=4096
+    LimitNOFILE=8092
 
 Reload services configuration and restart pmtaproxy:
 
