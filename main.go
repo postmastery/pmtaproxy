@@ -10,7 +10,7 @@ import (
 )
 
 // Version reported by -v parameter.
-var Version = "1.2.6"
+var Version = "1.3.0"
 
 func main() {
 
