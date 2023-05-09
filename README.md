@@ -23,7 +23,7 @@ The proxy supports the following settings:
 
 ## Installing
 
-Download pmtaproxy for Linux from [https://postmastery.egnyte.com/dl/can2yhUBi8](https://postmastery.egnyte.com/dl/can2yhUBi8).
+Compile pmtaproxy from source or download a precompiled binary from [Releases](https://github.com/postmastery/pmtaproxy/releases).
 
 Copy pmtaproxy to the server in /usr/local/sbin. Set permissions to 0755.
 
