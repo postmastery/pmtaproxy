@@ -19,7 +19,7 @@ The main feature of pmtaproxy is it's simplicity. It's sole purpose is to proxy 
 The proxy supports the following settings:
 
 * -l: host:port for listening. Use this setting to specify the IP (optional) and port to listen for incoming connections fromm PowerMTA.
-* -a: allowed connection sources. Use this setting to allow incoming connections from the specified CIDR range and deny all other.
+* -a: allowed connection sources. Use this setting to allow incoming connections from the specified CIDR ranges and deny all other. You can specify multiple ranges separated by comma.
 
 ## Installing
 

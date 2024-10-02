@@ -4,13 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
 // Version reported by -v parameter.
-var Version = "1.3.0"
+var Version = "1.4.0"
 
 func main() {
 
@@ -32,7 +34,15 @@ func main() {
 		return
 	}
 
-	s, err := newServer(listen, allow)
+	var allowed []*net.IPNet
+	for _, cidr := range strings.Split(allow, ",") {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		allowed = append(allowed, ipNet)
+	}
+	s, err := newServer(listen, allowed)
 	if err != nil {
 		log.Fatal(err)
 	}

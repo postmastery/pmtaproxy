@@ -10,7 +10,7 @@ import (
 
 type server struct {
 	listener net.Listener
-	allowed  *net.IPNet
+	allowed  []*net.IPNet
 	wg       sync.WaitGroup
 	quit     chan struct{}
 	// ErrCh will pass an error from accept
@@ -18,14 +18,10 @@ type server struct {
 }
 
 // newServer starts a listener in a goroutine and returns.
-func newServer(listenAddress string, allowCIDR string) (s *server, err error) {
+func newServer(listenAddress string, allowed []*net.IPNet) (s *server, err error) {
 	//var lc net.ListenConfig
 	// listener, err := lc.Listen(ctx, "tcp", listenAdress)
 	listener, err := net.Listen("tcp", listenAddress)
-	if err != nil {
-		return
-	}
-	_, allowed, err := net.ParseCIDR(allowCIDR)
 	if err != nil {
 		return
 	}
@@ -80,14 +76,14 @@ func (s *server) handleConn(conn net.Conn) {
 
 	address, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	clientIP := net.ParseIP(address)
-	if clientIP == nil || !s.allowed.Contains(clientIP) {
+	if clientIP == nil || !s.isAllowed(clientIP) {
 		conn.Close()
 		log.Printf("Request from %s not allowed", clientIP)
 		return
 	}
 
 	// read proxy request
-	conn.SetReadDeadline(time.Now().Add(requestTimeout))
+	_ = conn.SetReadDeadline(time.Now().Add(requestTimeout))
 	source, destination, err := readHeader(conn)
 	if err != nil {
 		conn.Close()
@@ -95,7 +91,7 @@ func (s *server) handleConn(conn net.Conn) {
 		// probably not a valid client, silently disconnect
 		return
 	}
-	conn.SetReadDeadline(time.Time{})
+	_ = conn.SetReadDeadline(time.Time{})
 
 	log.Printf("Request to proxy from %s to %s via %s", conn.RemoteAddr(), destination, source)
 
@@ -103,9 +99,6 @@ func (s *server) handleConn(conn net.Conn) {
 	dstConn, err := net.DialTCP("tcp", source, destination)
 	if err != nil {
 		conn.Close()
-		// "dial tcp 136.144.181.209:0->149.210.165.215:25: connect: connection timed out" after 2m10s
-		// "dial tcp 185.28.63.232:0->104.47.70.33:25: socket: too many open files"
-		// "refused", "network is unreachable"
 		log.Printf("%v", err)
 		return
 	}
@@ -122,14 +115,21 @@ func (s *server) handleConn(conn net.Conn) {
 	for i := 0; i < 2; i++ {
 		err := <-errCh
 		if err != nil {
-			// readfrom tcp 136.144.181.209:35455->108.177.127.27:25: splice: connection reset by peer
-			// readfrom tcp 185.28.63.190:37080->67.195.228.94:25: splice: connection reset by peer
 			log.Printf("%v", err)
 		}
 	}
 	conn.Close()
 	dstConn.Close()
 	log.Printf("Done proxying from %s to %s via %s", conn.RemoteAddr(), destination, source)
+}
+
+func (s *server) isAllowed(ip net.IP) bool {
+	for _, cidr := range s.allowed {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 var pool = &sync.Pool{
@@ -148,7 +148,7 @@ func proxy(src, dst *net.TCPConn, errCh chan error) {
 	// Otherwise destination might wait and reverse direction proxy does not finish.
 	// Servers can choose to send data after receiving FIN packet.
 	// https://github.com/kubernetes/kubernetes/blob/master/pkg/proxy/userspace/proxysocket.go#L164
-	dst.CloseWrite()
-	src.CloseRead() // ? needed
+	_ = dst.CloseWrite()
+	_ = src.CloseRead() // ? needed
 	errCh <- err
 }
